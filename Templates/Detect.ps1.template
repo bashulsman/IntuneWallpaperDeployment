@@ -1,0 +1,41 @@
+<#
+    Detect.ps1 - Intune custom detection script.
+    Any output on STDOUT + exit code 0 = "installed". No output, or a
+    non-zero exit code = "not installed" (Intune will (re)install).
+
+    This file is GENERATED per customer/version by New-WallpaperPackage.ps1.
+    Intune uploads only this script's content and runs it standalone on the
+    client - it has no access to config.json at runtime - so CustomerName and
+    Version are baked in below at generation time rather than read from config.
+#>
+
+$ExpectedCustomer = '{{CUSTOMER_NAME}}'
+$ExpectedVersion  = '{{VERSION}}'
+
+$RegPersonalizationCspKey = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\PersonalizationCSP'
+$RegTrackingKey = "HKLM:\SOFTWARE\$ExpectedCustomer\WallpaperDeployment"
+
+try {
+    if (-not (Test-Path $RegTrackingKey)) { exit 1 }
+
+    $tracking = Get-ItemProperty -Path $RegTrackingKey -ErrorAction Stop
+    if ($tracking.Version -ne $ExpectedVersion) { exit 1 }
+
+    $csp = Get-ItemProperty -Path $RegPersonalizationCspKey -ErrorAction Stop
+
+    if ($tracking.Mode -in @('LockscreenOnly', 'Both')) {
+        if ($csp.LockScreenImageStatus -ne 1) { exit 1 }
+        if (-not (Test-Path $tracking.LockscreenImage)) { exit 1 }
+    }
+
+    if ($tracking.Mode -in @('BackgroundOnly', 'Both')) {
+        if ($csp.DesktopImageStatus -ne 1) { exit 1 }
+        if (-not (Test-Path $tracking.DesktopImage)) { exit 1 }
+    }
+
+    Write-Output "Installed: $ExpectedCustomer version $($tracking.Version), mode $($tracking.Mode)"
+    exit 0
+}
+catch {
+    exit 1
+}
