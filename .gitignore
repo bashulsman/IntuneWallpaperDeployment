@@ -1,6 +1,0 @@
-# Generated packages are per-customer output, not part of the tool itself.
-Packages/
-
-# OS/editor junk
-Thumbs.db
-.DS_Store
